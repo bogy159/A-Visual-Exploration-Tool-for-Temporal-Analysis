@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">
+   <head>   
+      <title>All the data can be seen here.</title>
+	  <link rel = "stylesheet"
+		type = "text/css"
+		href = "{{ url_for('static', filename='stylesheets/index.css') }}" />
+       
+	   <h1>Cursor is hand? - Click on it!</h1>
+   </head>
+   
+   <body>  
+	<br>
+	<br>
+       <div style="text-align:center;">
+			<button onclick="pageBackward()" class="buttonR"><</button> 
+			<button onclick="pageForward()" class="buttonR">></button> 
+			<button onclick="reduceBars()" class="buttonR">-</button>   
+			<button onclick="increaseBars()" class="buttonR">+</button>
+			<span id="pageNumberL" class="label"> shown/all </span>
+			<button onclick="sortDown()" class="buttonR">&#8595;</button>  
+			<button onclick="sortUp()" class="buttonR">&#8593;</button>  
+			<select id="select" class="buttonS">  
+				<option value="amount">Amount</option>
+				<option value="mean">Mean</option>
+				<option value="bayesian">Weight</option>
+				<option value="variance">Variance</option>
+				<option value="trend">Trend</option>
+				<option value="name">Name</option>
+			</select>
+        </div>
+	<br>
+	<h4 id="restaurants" style="text-align:center;"></h4>
+   </body>
+</html>
+    
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Load ajax -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div style="text-align:center;" id="my_dataviz"></div>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<script>   
+		  
+var allData
+var currentData
+
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+  .append("svg")
+  
+//var maxBin
+var subgroups
+var numberOfBars = 10;
+var currentPage = 1;
+var isItUp = false
+
+getRNames();
+
+function listRestaurants(data){	
+	//var names = [];
+	//var count = [];
+	//var rating = [];
+	//var finalList = [];
+	
+	
+	changeLabel(currentPage, allData.length, numberOfBars)
+		
+	document.getElementById('restaurants').innerHTML = ""
+	
+	for (i in Object.keys(data)){
+		//names.push(data[i].newID);
+		var overall = parseInt(data[i]["1_star"]) + parseInt(data[i]["2_star"]) + parseInt(data[i]["3_star"]) + parseInt(data[i]["4_star"]) + parseInt(data[i]["5_star"]);
+		//count.push(overall);
+		var mean = (parseInt(data[i]["1_star"]) + parseInt(data[i]["2_star"]) * 2 + parseInt(data[i]["3_star"]) * 3 + parseInt(data[i]["4_star"]) * 4 + parseInt(data[i]["5_star"]) * 5)/parseInt(overall)
+		//rating.push(mean);
+		//finalText = data[i].newID + "     " + mean.toFixed(2) + " Stars       " + overall + " Reviews"
+		//finalList.push(finalText);
+		
+		document.getElementById('restaurants').innerHTML += "<br>" + "<a target='blank' href='http://localhost:5000/allRestReviews?" + data[i].newID + "'>" + data[i].newID + "</a><br>" + mean.toFixed(2) + " Stars <br>" + overall + " Reviews <br>"
+		
+	}	
+	
+}
+
+function getRNames(){
+	var t0 = performance.now();
+	console.log("Get to Ajax started at " + t0);
+
+	return $.post("http://localhost:5000/restaurantsNames2",
+	  {
+	  },
+	  function(data){
+		try{
+			allData = JSON.parse(data)
+			var t1 = performance.now();
+			console.log("Get to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+			
+			changeLabel(currentPage, allData.length, numberOfBars)
+
+			currentData = Object.assign(JSON.parse(data));
+
+			// List of subgroups = header of the csv/json files = soil condition here		
+			subgroups = Object.keys(currentData[0]).slice(1)
+			
+			currentData = currentData.slice(numberOfBars*(currentPage-1), numberOfBars*currentPage)
+			
+			listRestaurants(currentData)
+			//showGrapth(currentData);
+		}
+		catch (e) {
+			alert("Some Javascript error happened: " + e)
+		}
+	  });	
+}
+
+// handle on click event
+d3.select('#select')
+  .on('change', function() {
+    //var newData = eval(d3.select(this).property('value'));
+    switch(d3.select(this).property('value')) {
+	  case "amount":
+			isItUp = false
+			sortAmountD()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;
+	  case "mean":
+			isItUp = false
+			sortMeanD()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;
+	  case "bayesian":
+			isItUp = false
+			sortBayesianD()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;
+	  case "variance":
+			isItUp = false
+			sortVarianceD()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;
+	  case "name":
+			isItUp = true
+			sortNameA()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;		
+	  case "trend":
+			isItUp = true
+			sortTrendA()
+			//showGrapth(currentData);
+			listRestaurants(currentData);
+		break;
+	  default:
+		// code block
+	}
+});
+
+function showGrapth(data){
+
+changeLabel(currentPage, allData.length, numberOfBars)
+
+maxBin = d3.max(currentData, function(g) { return parseInt(g["1_star"]) + parseInt(g["2_star"]) + parseInt(g["3_star"]) + parseInt(g["4_star"]) + parseInt(g["5_star"]);} );
+
+var svg = d3.select("svg");
+      svg.selectAll("*").remove(); 
+    
+// set the dimensions and margins of the graph
+var margin = {top: 30, right: 30, bottom: 180, left: 110},
+    width = 1550 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+  .select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+  // List of groups = species here = value of the first column called group -> I show them on the X axis
+  var groups = d3.map(data, function(d){return(d.newID)}).keys()
+    	
+	// Add X axis
+  x = d3.scaleBand()
+      .domain(groups)
+      .range([0, width])
+      .padding([0.2])
+  svg.append("g")
+		.attr("class", "axis axis--x")
+		.attr("transform", "translate(0," + height + ")")
+		.call(d3.axisBottom(x))
+		.selectAll("text")
+		  .attr("transform", "translate(-10,0)rotate(-30)")
+		  .style("font-family", "PlovdivSans")
+		  .style("text-anchor", "end");
+
+  // Add Y axis
+  var y = d3.scaleLinear()
+    .domain([0, maxBin])
+    .range([ height, 0 ]);
+  svg.append("g")
+	.style("font-family", "PlovdivSans")
+    .call(d3.axisLeft(y));
+
+
+  // color palette = one color per subgroup
+  var color = d3.scaleOrdinal()
+    .domain(subgroups)
+    .range(['#d7191c','#fdae61','#ffffbf','#abdda4','#2b83ba'])
+
+  //stack the data? --> stack per subgroup
+  var stackedData = d3.stack()
+    .keys(subgroups.slice(0,5))
+    (data)
+
+  // ----------------
+  // Create a tooltip
+  // ----------------
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+
+  // Three function that change the tooltip when user hover / move / leave / click a cell
+  var mouseover = function(d) {
+    //var subgroupName = d3.select(this.parentNode).datum().key;
+    //var subgroupValue = d.data[subgroupName];
+    tooltip
+		.style("opacity", 1)
+    d3.select(this)
+      .style("stroke", "black")
+      .style("opacity", 1)
+	
+  }
+  
+  var mousemove = function(d) {
+  
+	var subgroupName = d3.select(this.parentNode).datum().key;
+    var subgroupValue = d.data[subgroupName];
+	tooltip
+        .html("The amount of " + subgroupName[0] + " star reviews is: " + subgroupValue)
+      .style("left", (d3.mouse(this)[0]+150) + "px")
+      .style("top", (d3.mouse(this)[1]+120) + "px")		
+  }
+  
+  var mouseleave = function(d) {
+    tooltip
+      .style("opacity", 0)
+    d3.select(this)
+      .style("stroke", "grey")
+	  .style("border", "solid")
+      .style("border-width", "2px")
+      .style("border-radius", "5px")
+      .style("padding", "5px")
+  }
+  
+  var mouseclick = async function(d) {
+	  
+	d3.select(this)
+		.style("cursor", "progress") 
+		
+	var mouseX = d3.mouse(this)[0]+150
+	var mouseY = d3.mouse(this)[1]+120
+	var something = await postTopWords(d.data.newID, d3.select(this.parentNode).datum().key[0])
+		
+	tooltipWords(something, mouseX, mouseY)	
+	
+	d3.select(this)
+		.style("cursor", "default") 
+  }  
+  
+  function tooltipWords(item, mouseX, mouseY){		
+	tooltip
+		.html(item)
+		.style("left", mouseX + "px")
+		.style("top", mouseY + "px")	
+		.style("opacity", 1)
+		
+	
+	//d3.select(this)
+		.style("cursor", "pointer") 
+	}
+	
+  // Three function that change the item when user hover / move / leave / click axis elemnt
+  var mouseoverX = function(d) {
+    //tooltip
+    //  .style("opacity", 1)
+	d3.select(this)
+		.style("cursor", "pointer")
+		.style("stroke", "red")	
+  }
+  
+  var mousemoveX = function(d) {
+  
+	//var subgroupName = d3.select(this.parentNode).datum().key;
+	//console.log(d.data)
+	//console.log(d3.select(this)._groups)
+    //var subgroupValue = d.data[subgroupName];
+	//tooltip
+    //    .html("The amount of " + subgroupName[0] + " star reviews is: " + subgroupValue)
+    //  .style("left", (d3.mouse(this)[0]+150) + "px")
+    //  .style("top", (d3.mouse(this)[1]+120) + "px")		
+  }
+  
+  var mouseleaveX = function(d) {
+    tooltip
+      .style("opacity", 0)
+	d3.select(this)
+      .style("stroke", "none")
+  }
+  
+  var mouseclickX = async function(d, xy, m) {
+	 
+	m.style("cursor", "progress")  		
+	var mouseX = xy[0] - 150
+	var mouseY = xy[1] - 80
+	var something = await postTopWords(d, "")
+		
+	tooltipWords(something, mouseX, mouseY)
+	m.style("cursor", "default") 
+  }
+  
+  var mouseDBLclickX = async function(d) {
+	  
+	location.href="http://localhost:5000/yearView?" + d;
+  }
+  
+  var cc = clickcancel();
+  
+  // Show the bars
+  svg.append("g")
+    .selectAll("g")
+    // Enter in the stack data = loop key per key = group per group
+    .data(stackedData)
+    .enter().append("g")	
+      .attr("fill", function(d) { return color(d.key); })
+      .selectAll("rect")
+      // enter a second time = loop subgroup per subgroup to add all rectangles
+      .data(function(d) { return d; })
+      .enter()
+	  .append("rect")
+        .attr("x", function(d) { return x(d.data.newID); })
+        .attr("y", function(d) { return y(d[1]); })
+        .attr("height", function(d) { return y(d[0]) - y(d[1]); })		
+        .attr("width",x.bandwidth())
+        .attr("stroke", "grey")
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)  	  
+      .on("click", mouseclick)
+	  
+	d3.select('.axis.axis--x').selectAll('.tick')		
+		.on("mouseover", mouseoverX)
+        .on("mousemove", mousemoveX)
+		.on("mouseleave", mouseleaveX)
+		
+	d3.select('.axis.axis--x').selectAll('.tick').call(cc);			
+		cc.on('click', mouseclickX)	
+		cc.on('dblclick', mouseDBLclickX)	
+}
+
+function sortNameA(){
+
+	data = currentData;
+
+	data.sort(function(a, b) {
+    return d3.ascending(a.newID, b.newID)
+  })   
+}
+
+function sortNameD(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.descending(a.newID, b.newID)
+  }) 
+}
+
+function sortAmountA(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.ascending(parseInt(a["1_star"]) + parseInt(a["2_star"]) + parseInt(a["3_star"]) + parseInt(a["4_star"]) + parseInt(a["5_star"]), parseInt(b["1_star"]) + parseInt(b["2_star"]) + parseInt(b["3_star"]) + parseInt(b["4_star"]) + parseInt(b["5_star"]))
+  })
+} 
+
+function sortAmountD(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.descending(parseInt(a["1_star"]) + parseInt(a["2_star"]) + parseInt(a["3_star"]) + parseInt(a["4_star"]) + parseInt(a["5_star"]), parseInt(b["1_star"]) + parseInt(b["2_star"]) + parseInt(b["3_star"]) + parseInt(b["4_star"]) + parseInt(b["5_star"]))
+  })
+} 
+    
+function sortMeanA(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.ascending((parseInt(a["1_star"]) + parseInt(a["2_star"])*2 + parseInt(a["3_star"])*3 + parseInt(a["4_star"])*4 + parseInt(a["5_star"])*5)/(parseInt(a["1_star"]) + parseInt(a["2_star"]) + parseInt(a["3_star"]) + parseInt(a["4_star"]) + parseInt(a["5_star"])), (parseInt(b["1_star"]) + parseInt(b["2_star"])*2 + parseInt(b["3_star"])*3 + parseInt(b["4_star"])*4 + parseInt(b["5_star"])*5)/(parseInt(b["1_star"]) + parseInt(b["2_star"]) + parseInt(b["3_star"]) + parseInt(b["4_star"]) + parseInt(b["5_star"])))
+  })
+} 
+	
+function sortMeanD(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.descending((parseInt(a["1_star"]) + parseInt(a["2_star"])*2 + parseInt(a["3_star"])*3 + parseInt(a["4_star"])*4 + parseInt(a["5_star"])*5)/(parseInt(a["1_star"]) + parseInt(a["2_star"]) + parseInt(a["3_star"]) + parseInt(a["4_star"]) + parseInt(a["5_star"])), (parseInt(b["1_star"]) + parseInt(b["2_star"])*2 + parseInt(b["3_star"])*3 + parseInt(b["4_star"])*4 + parseInt(b["5_star"])*5)/(parseInt(b["1_star"]) + parseInt(b["2_star"]) + parseInt(b["3_star"]) + parseInt(b["4_star"]) + parseInt(b["5_star"])))
+  })
+} 
+	
+function sortBayesianA(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.ascending(calculateBayesian(parseInt(a["1_star"]), parseInt(a["2_star"]), parseInt(a["3_star"]), parseInt(a["4_star"]), parseInt(a["5_star"])),calculateBayesian(parseInt(b["1_star"]), parseInt(b["2_star"]), parseInt(b["3_star"]), parseInt(b["4_star"]), parseInt(b["5_star"])))
+  
+  })
+} 
+	
+function sortBayesianD(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.descending(calculateBayesian(parseInt(a["1_star"]), parseInt(a["2_star"]), parseInt(a["3_star"]), parseInt(a["4_star"]), parseInt(a["5_star"])),calculateBayesian(parseInt(b["1_star"]), parseInt(b["2_star"]), parseInt(b["3_star"]), parseInt(b["4_star"]), parseInt(b["5_star"])))
+  
+  })
+} 	
+
+function sortVarianceA(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.ascending(calculateVariance(parseInt(a["1_star"]), parseInt(a["2_star"]), parseInt(a["3_star"]), parseInt(a["4_star"]), parseInt(a["5_star"])),calculateVariance(parseInt(b["1_star"]), parseInt(b["2_star"]), parseInt(b["3_star"]), parseInt(b["4_star"]), parseInt(b["5_star"])))
+  
+  })
+} 
+
+function sortVarianceD(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.descending(calculateVariance(parseInt(a["1_star"]), parseInt(a["2_star"]), parseInt(a["3_star"]), parseInt(a["4_star"]), parseInt(a["5_star"])),calculateVariance(parseInt(b["1_star"]), parseInt(b["2_star"]), parseInt(b["3_star"]), parseInt(b["4_star"]), parseInt(b["5_star"])))
+  
+  })
+} 
+
+function sortTrendA(){
+
+	data = currentData
+
+	data.sort(function(a, b) {
+    return d3.ascending(parseFloat(a["change"]), parseFloat(b["change"]))
+  
+  })
+}
+
+function sortTrendD(){
+
+	data = currentData
+
+	data.sort(function(a, b) { 
+    return d3.descending(parseFloat(a["change"]), parseFloat(b["change"]))
+  
+  })
+}
+
+function calculateVariance(a, b, c, d, e){
+	
+	var list = [];
+	if (a!=0){
+		for (var i = 1; i <= a; i++) {
+			list.push(1);
+		}
+	}
+	if (b!=0){
+		for (var i = 1; i <= b; i++) {
+			list.push(2);
+		}
+	}if (c!=0){
+		for (var i = 1; i <= c; i++) {
+			list.push(3);
+		}
+	}if (d!=0){
+		for (var i = 1; i <= d; i++) {
+			list.push(4);
+		}
+	}if (e!=0){
+		for (var i = 1; i <= e; i++) {
+			list.push(5);
+		}
+	}
+	
+	var total= list.reduce(function(a,b){
+		  return a+b;
+		});
+		
+		var mean=total/list.length;
+		
+		function var_numerator(value){
+			return ((value-mean)*(value-mean));
+}
+		
+		var variance=list.map(var_numerator);
+
+		variance=variance.reduce(function(a,b){
+		  return (a+b);
+		});
+
+		variance = variance/list.length;
+		
+	return variance
+}
+	
+function sortDown(){	
+
+	currentData = Object.assign(allData);
+	
+	switch(d3.select("#select").property('value')) {
+	  case "amount":
+			sortAmountD()
+		break;
+	  case "mean":
+			sortMeanD();
+		break;
+	  case "bayesian":
+			sortBayesianD();
+		break;
+	  case "variance":
+			sortVarianceD();
+		break;
+	  case "name":
+			sortNameD();
+		break;
+	  case "trend":
+			sortTrendD();
+		break;
+	  default:
+	}
+	
+	isItUp = false
+	
+	currentData = currentData.slice(numberOfBars*(currentPage-1), numberOfBars*currentPage);
+		
+	//showGrapth(currentData);
+	listRestaurants(currentData);
+}
+
+function sortUp(){
+
+	currentData = Object.assign(allData);
+
+	switch(d3.select("#select").property('value')) {
+	  case "amount":
+			sortAmountA()
+		break;
+	  case "mean":
+			sortMeanA();
+		break;
+	  case "bayesian":
+			sortBayesianA();
+		break;
+	  case "variance":
+			sortVarianceA();
+		break;
+	  case "name":
+			sortNameA();
+		break;
+	  case "trend":
+			sortTrendA();
+		break;
+	  default:
+	}
+	
+	isItUp = true
+	
+	currentData = currentData.slice(numberOfBars*(currentPage-1), numberOfBars*currentPage);
+	
+	//showGrapth(currentData);
+	listRestaurants(currentData);
+}
+	
+function reduceBars(){
+
+	numberOfBars = numberOfBars - 1
+
+	if (numberOfBars < 2){
+	numberOfBars = 2
+	}
+	
+	currentData = Object.assign(allData);	
+	
+	if (isItUp){
+	sortUp()
+	}
+	else{
+	sortDown()
+	}
+	
+	//showGrapth(currentData);
+	listRestaurants(currentData);
+
+}
+
+function increaseBars(){
+
+	numberOfBars = numberOfBars + 1	
+	
+	if (numberOfBars > allData.length){
+	numberOfBars = allData.length
+	}
+	
+	if (currentPage > Math.ceil(allData.length/numberOfBars)){
+		currentPage = Math.ceil(allData.length/numberOfBars)
+	}
+	
+	currentData = Object.assign(allData);	
+	
+	if (isItUp){
+	sortUp()
+	}
+	else{
+	sortDown()
+	}	
+	
+	changeLabel(currentPage, allData.length, numberOfBars)	
+	
+	
+	//showGrapth(currentData);
+	listRestaurants(currentData);
+
+}
+	
+function calculateBayesian(a,b,c,d,e){
+	
+	//C is the minimum number of observations
+	var C = 40;
+	//m is the average rating we can expect for movie
+	var m = 3.5;
+	
+	//Computing a Bayesian Estimate of Star Rating Means
+	var result = (C * m + (a+b*2+c*3+d*4+e*5))/(C + a+b+c+d+e)
+	
+	//console.log("Neshto: " + result)
+	return result
+			
+}
+	
+function postTopWords(newName, rating){
+
+var t0 = performance.now();
+console.log("Post to Ajax started at " + t0);
+
+return $.post("http://localhost:5000/topWords",
+  {
+    newName: newName,
+    rating: rating,
+	dateLow: "",
+	dateUp: "",
+  },
+  function(data){
+	var t1 = performance.now();
+	console.log("Post to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+	
+  });			
+}
+
+function pageForward(){
+	
+	if (currentPage < Math.ceil(allData.length/numberOfBars)){
+		
+		currentPage = currentPage + 1				
+		
+		currentData = Object.assign(allData);		
+		currentData = currentData.slice(numberOfBars*(currentPage-1), numberOfBars*currentPage);			
+		//showGrapth(currentData);
+		listRestaurants(currentData);
+	}	
+	
+}
+
+function pageBackward(){
+	if (currentPage > 1){
+		
+		currentPage = currentPage - 1
+		//changeLabel(currentPage, allData.length, numberOfBars)
+		
+		currentData = Object.assign(allData);		
+		currentData = currentData.slice(numberOfBars*(currentPage-1), numberOfBars*currentPage);			
+		//showGrapth(currentData);
+		listRestaurants(currentData);
+	}	
+}
+
+function changeLabel(x, y, z){	
+	//document.getElementById('pageNumberL').innerHTML = ' ' + x + '/' + Math.ceil(y/z) + ' ';
+	document.getElementById('pageNumberL').innerHTML = ' ' + (x*z-z+1) + '-' + (x*z) + '/' + y + ' ';
+}
+
+function clickcancel() {
+  // we want to a distinguish single/double click
+  var dispatcher = d3.dispatch('click', 'dblclick');
+  function cc(selection) {
+      var down, tolerance = 5, last, wait = null, args;
+      // euclidean distance
+      function dist(a, b) {
+          return Math.sqrt(Math.pow(a[0] - b[0], 2), Math.pow(a[1] - b[1], 2));
+      }
+      selection.on('mousedown', function() {
+          down = d3.mouse(document.body);
+          last = +new Date();
+          args = arguments;
+		  args[1] = down;
+		  args[2] = d3.select(this);		  
+      });
+      selection.on('mouseup', function() {
+          if (dist(down, d3.mouse(document.body)) > tolerance) {
+              return;
+          } else {
+              if (wait) {
+                  window.clearTimeout(wait);
+                  wait = null;
+                  dispatcher.apply("dblclick", this, args);
+              } else {
+                  wait = window.setTimeout((function() {
+                      return function() { 
+                          dispatcher.apply("click", this, args);
+                          wait = null;
+                      };
+                  })(), 300);
+              }
+          }
+      });
+  };
+  // Copies a variable number of methods from source to target.
+  var d3rebind = function(target, source) {
+    var i = 1, n = arguments.length, method;
+    while (++i < n) target[method = arguments[i]] = d3_rebind(target, source, source[method]);
+    return target;
+  };
+
+  // Method is assumed to be a standard D3 getter-setter:
+  // If passed with no arguments, gets the value.
+  // If passed with arguments, sets the value and returns the target.
+  function d3_rebind(target, source, method) {
+    return function() {
+      var value = method.apply(source, arguments);
+      return value === source ? target : value;
+    };
+  }
+  return d3rebind(cc, dispatcher, 'on');
+}
+
+</script>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">
+   <head>
+      <title>Visualisation tool</title>
+	  <link rel = "stylesheet"
+		type = "text/css"
+		href = "{{ url_for('static', filename='stylesheets/index.css') }}" />
+       <h1>Welcome!</h1>
+	   <h2>Press the start button to begin!</h2>
+   </head>
+   <body>
+		<div style="text-align:center;">
+			<a onclick="MongoDB()" class="buttonB">Start</a>   
+        </div>
+   </body>
+</html>
+
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Load ajax -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div style="text-align:center;" id="my_dataviz"></div>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<script>   
+
+function postSomething(){
+
+var t0 = performance.now();
+console.log("Post to Ajax started at " + t0);
+
+return $.post("http://localhost:5000/something",
+  {
+    neshto: "abracadabra"
+  },
+  function(data){
+	var t1 = performance.now();
+	console.log("Post to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+	if (data == "True")
+	{
+		alert(data);
+		console.log(data);		
+	}
+	else{
+		alert(JSON.parse(data));
+		console.log(JSON.parse(data));
+	}
+	
+  });			
+}
+
+function MongoDB(){
+
+const mongo = require('mongodb');
+
+const MongoClient = mongo.MongoClient;
+
+const url = 'mongodb://localhost:27017';
+
+MongoClient.connect(url, { useNewUrlParser: true }, (err, client) => {
+
+    if (err) throw err;
+
+    const db = client.db("testdb");
+
+    db.listCollections().toArray().then((docs) => {
+
+        console.log('Available collections:');
+        docs.forEach((doc, idx, array) => { console.log(doc.name) });
+
+    }).catch((err) => {
+
+        console.log(err);
+    }).finally(() => {
+
+        client.close();
+    });
+});
+
+}
+
+</script> 

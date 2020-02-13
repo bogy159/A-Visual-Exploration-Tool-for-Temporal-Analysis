@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+   <head>
+      <title>Most common words</title>
+       <h2>Choose filter criteria and words analysis:</h2>
+      <style>
+         .button {
+         background-color: #1c87c9;
+         border: none;
+         color: white;
+         padding: 8px 14px;
+         text-align: center;
+         text-decoration: none;
+         display: inline-block;
+         font-size: 16px;
+         margin: 4px 2px;
+         cursor: pointer;
+         }
+      </style>
+   </head>
+   
+   <body>
+       <a href="{{ url_for('allSample') }}" class="button">All Data</a>     
+       <a href="{{ url_for('singleRestaurant') }}" class="button">Single Restaurant</a> 
+       <a href="{{ url_for('clustering') }}" class="button">Clustering</a>
+	   <a href="{{ url_for('wordCount') }}" class="button">Word Count</a>
+       <br>
+       <label for="ID">ID:</label>
+       <select id="selectButton">
+		  <option value=""></option>
+	   </select>
+	   <label for="selectRatingL">Rating:</label>
+       <select id="selectRatingB">
+          <option value=""></option>
+          <option value="1">1</option>
+		  <option value="2">2</option>
+		  <option value="3">3</option>
+		  <option value="4">4</option>
+		  <option value="5">5</option>
+       </select>
+	   <label for="selectPolarityL">Polarity:</label>
+       <select id="selectPolarityB">
+          <option value="">Off</option>
+          <option value="0">Negative</option>
+		  <option value="1">Neutral</option>
+		  <option value="2">Positive</option>
+       </select>
+       <br>
+       <label for="min">Min value:</label>
+       <input id="dateLow" type="date" value="2012-01-01">
+       <label for="max">Max value:</label>
+       <input id="dateUp" type="date" value="2016-12-31">
+	   <br>
+	   <label for="selectFilterM">Time of Year:</label>
+       <select id="selectFilterB">
+          <option value=""></option>
+          <option value="0">January</option>
+          <option value="1">February</option>
+          <option value="2">March</option>
+		  <option value="3">April</option>
+		  <option value="4">May</option>
+		  <option value="5">June</option>
+		  <option value="6">July</option>
+		  <option value="7">August</option>
+		  <option value="8">September</option>
+		  <option value="9">October</option>
+		  <option value="10">November</option>
+		  <option value="11">December</option>
+       </select>
+	   <label for="selectFilterD">Week Day:</label>
+       <select id="selectFilDayB">
+          <option value=""></option>
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+		  <option value="2">Wednesday</option>
+		  <option value="3">Thursday</option>
+		  <option value="4">Friday</option>
+		  <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+       </select>
+	   <br>
+	   <label for="labelLemma">Show common:</label>
+       <select id="selectLemmaB">
+          <option value="tokens">Words</option>
+          <option value="lemmas">Lemmas</option>
+          <option value="phrases">Phrases</option>
+       </select>	   
+	   <label for="selectOverallM">With common:</label>
+       <input type="checkbox" id="checkOverallB" checked>
+	   <label for="labelTFrequency">Term frequency:</label>
+       <input type="checkbox" id="checkTFrequencyB">
+	   <label for="labelPast">For past periods:</label>
+       <input type="checkbox" id="checkPastB">
+	   <br>
+	   <label for="labelWordNum">Number of words:</label>
+	   <input type="number" id="inputWordNum" name="inputWordNum" value="10" required 
+		min="1" max="99" size="2">
+	   <label for="granulationL">Granulation:</label>
+       <select id="selectGranulB">
+          <option value="Year">Annual</option>
+          <option value="Month">Monthly</option>
+          <option value="Restaurant">Place</option>
+       </select>
+       <button onclick="postAjax()">Show</button>
+       <br>
+       <br>
+	   <label for id="labelCloud" style="display:none;">Select Cloud:</label>
+       <select id="selectCloud" style="display:none;"></select>
+	</body>
+   
+</html>
+    
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+<div id="matrix_div"></div>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<!-- Load d3-cloud -->
+<script src="https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/LIB/d3.layout.cloud.js"></script>
+
+<!-- Load ajax -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<svg width="0" height="0" id="svg"></svg>
+
+<script>     
+    
+//Time parse
+var parseDate = d3.timeParse("%Y-%m-%d");
+    
+// Read the data and compute summary statistics for each specie
+var allData;
+
+
+d3.csv("/static/revSam.csv", function(data) {
+    	
+	// List of groups (here I have one group per column)
+    var allGroup = d3.nest()
+		.key(function(d){
+			return(d.business_id)
+		})
+		.rollup(function(d) {
+			name = d.map(function(g) { return g.name;})[0]
+			postal = d.map(function(g) { return g.postal_code;})[0]
+			return ({name:name, postal: postal})
+		})
+		.entries(data)
+		
+		
+    // add the options to the button
+    d3.select("#selectButton")
+      .selectAll('myOptions')
+     	.data(allGroup)
+      .enter()
+    	.append('option')
+      .text(function (d) { return d.value.name  + " - " + d.value.postal;  }) // text showed in the menu
+      .attr("value", function (d) { return d.key; }) // corresponding value returned by the button
+       
+    allData = data;
+})
+
+function postAjax(){
+	
+  var t0 = performance.now();
+  console.log("Post to Ajax started at " + ((t0)/(1000)) + " seconds.");
+  var ID = document.getElementById("selectButton").value;
+  var rating = document.getElementById("selectRatingB").value;
+  var dateLow = new Date(parseDate(document.getElementById("dateLow").value));
+  dateLow = dateLow.getFullYear() + "-" + parseInt(dateLow.getMonth()+1) + "-" + dateLow.getDate();
+  var dateUp = new Date(parseDate(document.getElementById("dateUp").value));
+  dateUp = dateUp.getFullYear() + "-" + parseInt(dateUp.getMonth()+1) + "-" + dateUp.getDate();
+  var toYear = document.getElementById("selectFilterB").value;
+  var weekDay = document.getElementById("selectFilDayB").value;
+  var overall = document.getElementById("checkOverallB").checked;
+  var topWords = document.getElementById("inputWordNum").value; 
+  var granulation = document.getElementById("selectGranulB").value; 
+  var getLemma = document.getElementById("selectLemmaB").value;
+  var frequency = document.getElementById("checkTFrequencyB").checked;  
+  var past = document.getElementById("checkPastB").checked;
+  var polarity = document.getElementById("selectPolarityB").value;
+  	
+  if (parseDate(document.getElementById("dateLow").value)!=null)
+	{ 
+	if (parseDate(document.getElementById("dateUp").value)!=null)
+		{
+		if (parseDate(document.getElementById("dateLow").value) >= parseDate(document.getElementById("dateUp").value))
+			{
+			  dateLow = "";    
+			  dateUp = "";
+			}
+		}
+	else 
+		{
+		dateUp = "";
+		}
+	}
+  else 
+	  {
+	  dateLow = "";
+	  }
+	  
+  if (parseDate(document.getElementById("dateUp").value)==null)
+	{
+	dateUp = "";
+	}
+  
+  $.post("http://localhost:5000/endpointWC",
+  {
+    ID: ID,
+    rating: rating,
+    dateLow: dateLow,
+	dateUp: dateUp,
+	toYear: toYear,
+	weekDay: weekDay,
+	overall: overall,
+	topWords: topWords, 
+	granulation: granulation, 
+	getLemma: getLemma,
+	frequency: frequency,
+	past: past,
+	polarity: polarity
+  },
+  function(data){
+    //alert("Data: " + data);
+	console.log("Rezultatite sa: " + data)
+	if (data == "True"){
+		createTable();
+		wordCloud();
+		Matrix();//.matrixY();
+	}
+	else{
+		alert(data);
+	}
+	var t1 = performance.now();
+	console.log("Post to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+  });
+}
+
+function createTable(){
+
+	var table = d3.select("#my_dataviz");
+    table.selectAll("*").remove();
+
+	var tabulate = function (data,columns) {
+	  var table = d3.select('#my_dataviz').append('table')
+            //This line is bugged. It is supposed to keep the table width tight.
+            .attr("width", columns.length * 100)
+		var thead = table.append('thead')
+		var tbody = table.append('tbody')
+
+		thead.append('tr')
+		  .selectAll('th')
+			.data(columns)
+			.enter()
+		  .append('th')
+			.text(function (d) { return d })
+
+		var rows = tbody.selectAll('tr')
+			//.attr("width", "100171px")
+			.data(data)
+			.enter()
+		  .append('tr')
+
+		var cells = rows.selectAll('td')
+			//.attr("width", "100171px")
+			.data(function(row) {
+				return columns.map(function (column) {
+					return { column: column, value: row[column] }
+			  })
+		  })
+		  .enter()
+		.append('td')
+		  .text(function (d) { return d.value })
+		  //.style("font-family", "sans-serif")
+		  //.attr("font-size", "20px")       
+		  //.style("stroke", "darkOrange")
+		  .style("background-color", "lightyellow");
+
+	  return table;
+	}
+
+	d3.csv('/static/wordCount.csv' + '?' + Math.floor(Math.random() * 1000000) ,function (data) {
+		var columns = data.columns
+	  tabulate(data,columns)	  
+	})
+
+}
+
+function wordCloud(){
+			
+	// set the dimensions and margins of the graph
+	var margin = {top: 10, right: 5, bottom: 10, left: 5},
+		width = 600 - margin.left - margin.right,
+		height = 300 - margin.top - margin.bottom;
+	
+	var svg = d3.select("#my_dataviz").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", "translate(" + (width / 2) + "," + (height / 2) + ")")
+	
+	d3.csv('/static/wordCount.csv' + '?' + Math.floor(Math.random() * 1000000) ,function (data) {	
+		
+      var dropDown = d3.select("#selectCloud")
+	  
+	  var foodVenues = []
+		for (i = 0; i < data.columns.slice(1).length; i=i+2){
+			foodVenues.push(data.columns.slice(1)[i] + "_-_" + data.columns.slice(1)[i + 1])
+		}
+	
+	  document.getElementById("selectCloud").options.length = 0
+
+      var options = dropDown.selectAll("option")
+        .data(foodVenues)
+        .enter()
+        .append("option")
+        .text(function(d) {var n = d.split(" ")
+            return n[n.length - 1];
+          })
+        .attr("value", function(d) {
+          return d;
+        })
+		
+	  document.getElementById('selectCloud').style.display = 'inline-block';
+	  document.getElementById('labelCloud').style.display = 'inline-block';
+		
+      dropDown.on("change", update);
+
+      function update() {
+		var spliter =  this.value.split("_-_")
+        var filteredData = sortObject(data, spliter[0], spliter[1]);
+	  	  
+        d3.layout.cloud()
+          .size([width, height])
+          .words(filteredData)
+          .rotate(0)
+          .text(function(d) {
+            return d.label;
+          })
+          .font("Impact")
+          .fontSize(function(d) { 
+			return d.value
+          })
+          .on("end", draw)
+          .start();
+      }
+
+	  function sortObject(obj, name, count) {
+        var newValue = [];
+		var label = name || "Words: Overall";
+		var value = count || "Count: Overall";
+		
+		var smallSize = data.map(function(d) { return d[value]; })[data.map(function(d) { return d[value]; }).length-1]
+		var bigSize = data.map(function(d) { return d[value]; })[0]
+		
+		newValue = data.map(function(d) { return {label: d[label], value: convertRange( d[value], [ smallSize, bigSize ], [ 10, 35 ] )}; })
+				
+        return newValue;
+      }
+	  
+      var newValue = sortObject();
+
+      d3.layout.cloud()
+	    .size([width, height])
+        .words(newValue)
+        .rotate(0)
+        .text(function(d) {
+          return d.label;
+        })
+        .font("Impact")
+        .fontSize(function(d) { 
+          return d.value;
+        })
+        .on("end", draw)
+        .start();
+
+      function draw(words) {		  
+		  		  				  
+        var selectVis = svg.selectAll("text")
+          .data(words, (function(d) {
+            return d.label;
+          }), (function(d) {
+            return d.value;
+          }))
+		  .style("font-size",function(d) {
+            return d.value
+          });
+
+		var res = data.map(function(d, i){ return i }) // list of words ids
+		var fill = d3.scaleOrdinal()
+		  .domain(res)
+		  .range(['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']);
+
+
+        selectVis
+          .enter()
+		  .append("text")
+          .style("font-size", function(d) { 
+            return d.value
+          })
+          .style("font-family", "Impact")
+          .style("fill", function(d, i){ return fill(i) })
+          .attr("text-anchor", "middle")
+          .attr("transform", function(d) {
+            return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+          })
+          .text(function(d) {
+            return d.label;
+          })
+
+        selectVis
+          .transition()
+          .duration(700)
+          .style("font-size", function(d) { 
+            return d.value
+          })
+          .attr("transform", function(d) {
+            return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+          })
+          .style("fill-opacity", 1);
+
+        selectVis
+		  .exit()
+          .transition()
+          .duration(300)
+          .style('fill-opacity', 1e-6)
+          .attr('font-size', 1)
+          .remove();
+      }
+	})	
+}
+
+function convertRange( value, r1, r2 ) { 
+    return ( value - r1[ 0 ] ) * ( r2[ 1 ] - r2[ 0 ] ) / ( r1[ 1 ] - r1[ 0 ] ) + r2[ 0 ];
+}
+
+function Matrix(){	
+	
+if (document.getElementById("selectGranulB").value == "Year")
+	{	
+	matrixY();	
+	}
+else if (document.getElementById("selectGranulB").value == "Month")
+	{	
+	matrixM();	
+	}
+   
+
+function filtering(item){
+	
+	var result = item
+	
+  if (document.getElementById("selectButton").value != "")
+	 {	 
+	result = item.filter(function(d){return d.business_id==document.getElementById("selectButton").value})
+	 }
+  
+  if (document.getElementById("dateLow").value!="")
+     {
+         result = result.filter(function(d){return parseDate(d.date)>=parseDate(document.getElementById("dateLow").value)})    
+     }
+  if (document.getElementById("dateUp").value!="")
+     {
+         result = result.filter(function(d){return parseDate(d.date)<=parseDate(document.getElementById("dateUp").value)})
+     }  
+  if (document.getElementById("selectFilterB").value!="")
+     {
+		 switch (document.getElementById("selectFilterB").value) {
+			  case "Spring":
+				result = result.filter(function(d){return parseDate(d.date).getMonth()==2 || parseDate(d.date).getMonth()==3 || parseDate(d.date).getMonth()==4})
+				break;
+			  case "Summer":
+				result = result.filter(function(d){return parseDate(d.date).getMonth()==5 || parseDate(d.date).getMonth()==6 || parseDate(d.date).getMonth()==7})
+				break;
+			  case "Fall":
+				result = result.filter(function(d){return parseDate(d.date).getMonth()==8 || parseDate(d.date).getMonth()==9 || parseDate(d.date).getMonth()==10})
+				break;
+			  case "Winter":
+				result = result.filter(function(d){return parseDate(d.date).getMonth()==11 || parseDate(d.date).getMonth()==0 || parseDate(d.date).getMonth()==1})
+				break;
+			  default: 
+				result = result.filter(function(d){return parseDate(d.date).getMonth()==document.getElementById("selectFilterB").value})
+			  }    
+     }
+	 if (document.getElementById("selectFilDayB").value!="")
+     {
+		 result = result.filter(function(d){return parseDate(d.date).getDay()==document.getElementById("selectFilDayB").value})    
+     }
+	 
+	return result;
+}
+
+function matrixY(){
+		  
+	var svg = d3.select("#matrix_div");
+      svg.selectAll("*").remove(); 	  
+	
+  var largestQuadrant = 2; //This is for the colour domain
+	  
+  var data = filtering(allData);
+    
+  data.sort(function (a, b) {
+    return new Date(a.date) - new Date(b.date);      
+  });
+        
+  // Compute just the lower scale values
+  var sumstat = d3.nest()  // nest function allows to group the calculation per level of a factor
+    .key(function(d) { 
+         var dateObject = new Date(parseDate(d.date))
+         return  dateObject.getFullYear();}) 	
+    .entries(data)
+	
+	
+  // set the dimensions and margins of the graph
+ var margin = {top: 15, right: 30, bottom: 30, left: 285},
+      width = 517 - margin.left - margin.right,
+      height = 400 - margin.top - margin.bottom; 
+  
+ var svg2 = d3.select("#matrix_div")
+  .append("svg")
+    .attr("width", width*sumstat.map((d) => d.key).length + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+  
+  // Show the X scale
+  var x = d3.scaleBand()
+    .range([ 0, width*sumstat.map((d) => d.key).length ])
+    .domain(sumstat.map((d) => d.key))
+    .padding(0.01);
+  svg2.append("g")
+    .data(sumstat)
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+    .attr("font-size", "8px")
+    .selectAll("text")
+      .attr("transform", "translate(-10,0)rotate(-25)")
+      .style("text-anchor", "end");
+    
+  // Show the Y scale
+  var y = d3.scaleBand()
+    .domain([1,2,3,4,5])
+    .range([height, 0])
+	.padding(0.01);
+  svg2.append("g")
+    .call(d3.axisLeft(y))	
+	  
+	  // Compute just the lower scale values
+  var sumstat2 = d3.nest()  // nest function allows to group the calculation per level of a factor
+    .key(function(d) { 
+         var dateObject = new Date(parseDate(d.date))
+		 var star = d.stars
+         return  dateObject.getFullYear() +"_"+ star;}) 
+	.rollup(function(d) {   // For each key..
+		 amount = d.map(function(g) { return g.stars;}).length
+		 var datichka = new Date(parseDate(d.map(function(g) { return g.date;})[0]))
+		 date = datichka.getFullYear()
+		 star = d.map(function(g) { return g.stars;})[0]
+		 if (largestQuadrant<amount){		//This is for assigning the colour domain	 
+		 largestQuadrant = amount
+		 }
+         return({amount:amount,date:date,star:star})
+    })
+    .entries(data)
+	  
+	// Build color scale
+	var myColor = d3.scaleLinear()
+	  .range(['#fef0d9','#fdcc8a','#fc8d59','#d7301f'])
+	  .domain([1,largestQuadrant*0.33,largestQuadrant*0.67,largestQuadrant])
+	  
+  svg2.selectAll()
+  .data(sumstat2, function(d) {return d.key;})
+  .enter()
+  .append("rect") 
+	.attr("x", function(d) { return x(d.value.date) })
+	.attr("y", function(d) { return y(d.value.star) })
+	.attr("width", x.bandwidth() )
+	.attr("height", y.bandwidth() )
+	.style("fill", function(d) { return myColor(d.value.amount)} )
+  
+  // Handmade legend
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-55).attr("r", 5).style("fill", "#fef0d9").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-40).attr("r", 5).style("fill", "#fdcc8a").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-25).attr("r", 5).style("fill", "#fc8d59").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-10).attr("r", 5).style("fill", "#d7301f").style("stroke", "black")
+	svg2.append("text").attr("x", width-152).attr("y", height-54).text("1 review").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-39).text("Around " + parseInt(largestQuadrant*0.33) + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-24).text("Around " + parseInt(largestQuadrant*0.67) + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-9).text(largestQuadrant + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+    
+}	
+
+function matrixM(){
+	
+	
+	var svg = d3.select("#matrix_div");
+      svg.selectAll("*").remove(); 		
+		
+// set the dimensions and margins of the graph
+var margin = {top: 15, right: 30, bottom: 30, left: 239},
+    width = 490 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom; 
+	  
+  var largestQuadrant = 2; //This is for the colour domain
+	  
+  var data = filtering(allData);
+    
+  data.sort(function (a, b) {
+    return new Date(a.date) - new Date(b.date);      
+  });
+        
+  // Compute just the lower scale values
+  var sumstat = d3.nest()  // nest function allows to group the calculation per level of a factor
+    .key(function(d) { 
+         var dateObject = new Date(parseDate(d.date))
+         return  dateObject.getFullYear()+"-"+parseInt(dateObject.getMonth()+1);}) 	
+    .entries(data)
+  
+ var svg2 = d3.select("#matrix_div")
+  .append("svg")
+    .attr("width", (width-10)*sumstat.map((d) => d.key).length + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+  
+  // Show the X scale
+  var x = d3.scaleBand()
+    .range([ 0, (width-20)*sumstat.map((d) => d.key).length ])
+    .domain(sumstat.map((d) => d.key))
+    .padding(0.01);
+  svg2.append("g")
+    .data(sumstat)
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+    .attr("font-size", "8px")
+    .selectAll("text")
+      .attr("transform", "translate(-10,0)rotate(-30)")
+      .style("text-anchor", "end");
+    
+  // Show the Y scale
+  var y = d3.scaleBand()
+    .domain([1,2,3,4,5])
+    .range([height, 0])
+	.padding(0.01);
+  svg2.append("g")
+    .call(d3.axisLeft(y))
+
+	
+	  
+	  // Compute just the lower scale values
+  var sumstat2 = d3.nest()  // nest function allows to group the calculation per level of a factor
+    .key(function(d) { 
+         var dateObject = new Date(parseDate(d.date))
+		 var star = d.stars
+         return  dateObject.getFullYear()+"-"+parseInt(dateObject.getMonth()+1) +"_"+ star;}) 
+	.rollup(function(d) {   // For each key..
+		 amount = d.map(function(g) { return g.stars;}).length
+		 var datichka = new Date(parseDate(d.map(function(g) { return g.date;})[0]))
+		 date = datichka.getFullYear() +"-"+parseInt(datichka.getMonth()+1);
+		 star = d.map(function(g) { return g.stars;})[0]
+		 if (largestQuadrant<amount){		//This is for assigning the colour domain	 
+		 largestQuadrant = amount
+		 }
+         return({amount:amount,date:date,star:star})
+    })
+    .entries(data)
+	  
+	// Build color scale
+	var myColor = d3.scaleLinear()
+	  .range(['#fef0d9','#fdcc8a','#fc8d59','#d7301f'])
+	  .domain([1,largestQuadrant*0.33,largestQuadrant*0.67,largestQuadrant])
+	  
+  svg2.selectAll()
+  .data(sumstat2, function(d) {return d.key;})
+  .enter()
+  .append("rect") 
+	.attr("x", function(d) { return x(d.value.date) })
+	.attr("y", function(d) { return y(d.value.star) })
+	.attr("width", x.bandwidth() )
+	.attr("height", y.bandwidth() )
+	.style("fill", function(d) { return myColor(d.value.amount)} )
+  
+  // Handmade legend
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-55).attr("r", 5).style("fill", "#fef0d9").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-40).attr("r", 5).style("fill", "#fdcc8a").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-25).attr("r", 5).style("fill", "#fc8d59").style("stroke", "black")
+	svg2.append("circle").attr("cx",width-160).attr("cy",height-10).attr("r", 5).style("fill", "#d7301f").style("stroke", "black")
+	svg2.append("text").attr("x", width-152).attr("y", height-54).text("1 review").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-39).text("Around " + parseInt(largestQuadrant*0.33) + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-24).text("Around " + parseInt(largestQuadrant*0.67) + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+	svg2.append("text").attr("x", width-152).attr("y", height-9).text(largestQuadrant + " reviews").style("font-size", "12px").attr("alignment-baseline","middle")
+    
+}	
+
+}
+
+</script>

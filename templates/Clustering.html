@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+
+<html>
+   <head>
+      <title>Clustering:</title>
+       <h2>Choose visualisation mode:</h2>
+      <style>
+         .button {
+         background-color: #1c87c9;
+         border: none;
+         color: white;
+         padding: 8px 14px;
+         text-align: center;
+         text-decoration: none;
+         display: inline-block;
+         font-size: 16px;
+         margin: 4px 2px;
+         cursor: pointer;
+         }
+      </style>
+   </head>
+   <body>
+       <a href="{{ url_for('allSample') }}" class="button">All Data</a>     
+       <a href="{{ url_for('singleRestaurant') }}" class="button">Single Restaurant</a> 
+       <a href="{{ url_for('clustering') }}" class="button">Clustering</a> 
+	   <a href="{{ url_for('wordCount') }}" class="button">Word Count</a>
+       <br>	 
+	   <label for="labelFClAverage">Average by:</label>
+       <select id="selectFClAverage">
+		  <option value="median">Median</option>
+		  <option value="mean">Mean</option>
+       </select>
+	   <label for="labelSmooth">Smooth:</label>
+	   <input type="checkbox" id="checkSmooth">
+	   <label for="labelFClNormalise">Normalise:</label>
+       <select id="selectFClNormalise">
+		  <option value="">Off</option>
+		  <option value="minmax">Min/Max</option>
+		  <option value="zscore">Z-Score</option>
+       </select>
+       <br>	 
+	   <label for="labelFClMethod">Method:</label>
+       <select id="selectFClMethod">
+		  <option value="ward">Ward</option>
+          <option value="simple">Simple</option>
+          <option value="single">Single</option>
+          <option value="complete">Complete</option>
+          <option value="average">Average</option>
+		  <option value="weighted">Weighted</option>
+		  <option value="centroid">Centroid</option>
+		  <option value="median">Median</option>
+       </select>
+	   <label for="labelFilClust">Metric:</label>
+       <select id="selectFilClust">
+		  <option value="euclidean">Euclidean</option>
+          <option value="correlation">Correlation</option>
+          <option value="crossCorrelation">Cross-Correlation</option>
+          <option value="braycurtis">Bray-Curtis</option>
+          <option value="canberra">Canberra</option>
+		  <option value="chebyshev">Chebyshev</option>
+		  <option value="cityblock">City Block</option>
+		  <option value="cosine">Cosine</option>
+		  <option value="dice">Dice</option>
+		  <option value="hamming">Hamming</option>
+		  <option value="jaccard">Jaccard</option>
+		  <option value="kulsinski">Kulsinski</option>
+		  <option value="mahalanobis">Mahalanobis</option>
+		  <option value="minkowski">Minkowski</option>
+		  <option value="Rogerstanimoto">Rogers-Tanimoto</option>
+		  <option value="russellrao">Russell-Rao</option>
+		  <option value="seuclidean">S-Euclidean</option>
+		  <option value="sokalmichener">Sokal-Michener</option>
+		  <option value="sokalsneath">Sokal-Sneath</option>
+		  <option value="sqeuclidean">SQ-Euclidean</option>
+       </select>
+	   <label for="labelClustNum">Number of Clusters:</label>
+	   <input type="number" id="inputClustNum" name="inputClustNum" value="6" required 
+		min="2" max="25" size="2">
+	   <br>	   
+       <label for="min">Min value:</label>
+       <input id="dateLow" type="date" value="2013-01-01">
+       <label for="max">Max value:</label>
+       <input id="dateUp" type="date" value="2016-12-31">
+	   <br>
+	   <label for="labelTrend">Trend:</label>
+	   <input type="checkbox" id="checkTrend" onclick="disableMonthDay()">
+	   <label for id="labelFilterM">Time of Year:</label>
+       <select id="selectFilterB">
+          <option value=""></option>
+          <option value="0">January</option>
+          <option value="1">February</option>
+          <option value="2">March</option>
+		  <option value="3">April</option>
+		  <option value="4">May</option>
+		  <option value="5">June</option>
+		  <option value="6">July</option>
+		  <option value="7">August</option>
+		  <option value="8">September</option>
+		  <option value="9">October</option>
+		  <option value="10">November</option>
+		  <option value="11">December</option>
+       </select>
+	   <label for id="labelFilterD">Week Day:</label>
+       <select id="selectFilDayB">
+          <option value=""></option>
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+		  <option value="2">Wednesday</option>
+		  <option value="3">Thursday</option>
+		  <option value="4">Friday</option>
+		  <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+       </select>
+	   <button type="button" onclick="postAjax()">Show Clusters</button>
+	   <br>
+	   <br>
+	   <label for id="labelOverall" style="display:none;">With common:</label>       
+	   <input type="checkbox" id="checkOverallB" checked style="display:none;">
+	   <label for id="labelCluster" style="display:none;">Select Cluster:</label>
+       <select id="selectCluster" style="display:none;"></select>
+	   <label for id="labelWordNum" style="display:none;">Number of words:</label>
+	   <input type="number" id="inputWordNum" name="inputWordNum" value="10" required 
+		min="1" max="99" size="2" style="display:none;">
+	   <label for id="selectPolarityL" style="display:none;">Polarity:</label>
+       <select id="selectPolarityB" style="display:none;">
+          <option value="">Off</option>
+          <option value="0">Negative</option>
+		  <option value="1">Neutral</option>
+		  <option value="2">Positive</option>
+       </select>
+	   <br>	  
+	   <label for id="labelLemma" style="display:none;">Lemmas only:</label>
+       <select id="selectLemmaB" checked style="display:none;">
+          <option value="True">Yes</option>
+          <option value="Stem">Only Stem</option>
+          <option value="False">No</option>
+       </select>	   
+	   <label for id="labelTFrequency" style="display:none;">Term frequency:</label>
+       <input type="checkbox" id="checkTFrequencyB" style="display:none;">	   
+	   <label for id="labelPhrases" style="display:none;">Phrases:</label>
+       <input type="checkbox" id="checkPhrasesB" style="display:none;">
+	   <label for id="granulationL" style="display:none;">Granulation:</label>
+       <select id="selectGranulB" style="display:none;">
+          <option value="Year">Annual</option>
+          <option value="Month">Monthly</option>
+       </select>
+	   <button id= "showWordsB" type="button" onclick="postAjaxWords()" style="display:none;">Show Words</button>	
+       <br>
+	   <br>
+	   <label for id="labelCloud" style="display:none;">Select Cloud:</label>
+       <select id="selectCloud" style="display:none;"></select>
+	   
+	   
+   </body>
+</html>
+
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<!-- Load d3-cloud -->
+<script src="https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/LIB/d3.layout.cloud.js"></script>
+
+<!-- Load ajax -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<svg width="0" height="0"></svg>
+
+<script>
+
+//Time parse
+var parseDate = d3.timeParse("%Y-%m-%d");
+
+// set the dimensions and margins of the graph
+var margin = {top: 30, right: 210, bottom: 30, left: 50},
+    width = 1500 - margin.left - margin.right,
+    height = 270 - margin.top - margin.bottom;
+
+function postAjax(){
+	
+  var t0 = performance.now();
+  var clusNum = 6;
+  var dateLow = new Date(parseDate(document.getElementById("dateLow").value));
+  dateLow = dateLow.getFullYear() + "-" + parseInt(dateLow.getMonth()+1) + "-" + dateLow.getDate();
+  var dateUp = new Date(parseDate(document.getElementById("dateUp").value));
+  dateUp = dateUp.getFullYear() + "-" + parseInt(dateUp.getMonth()+1) + "-" + dateUp.getDate();
+  
+  var trend = document.getElementById("checkTrend").checked;
+  var toYear = "";
+  var weekDay = "";
+  if (trend == false){
+	toYear = document.getElementById("selectFilterB").value;
+	weekDay = document.getElementById("selectFilDayB").value; 
+  }
+  
+  var clMethod = document.getElementById("selectFClMethod").value;
+  var clMetric = document.getElementById("selectFilClust").value;
+  var average = document.getElementById("selectFClAverage").value;
+  var normalise = document.getElementById("selectFClNormalise").value;
+  var smooth = document.getElementById("checkSmooth").checked;
+  
+  if (parseInt(document.getElementById("inputClustNum").value)>=2 && parseInt(document.getElementById("inputClustNum").value)<=25)
+	{
+	  clusNum = parseInt(document.getElementById("inputClustNum").value) 
+	}
+	
+  if (parseDate(document.getElementById("dateLow").value)!=null)
+	{ 
+	if (parseDate(document.getElementById("dateUp").value)!=null)
+		{
+		if (parseDate(document.getElementById("dateLow").value) >= parseDate(document.getElementById("dateUp").value))
+			{
+			  dateLow = "";    
+			  dateUp = "";
+			}
+		}
+	else 
+		{
+		dateUp = "";
+		}
+	}
+  else 
+	  {
+	  dateLow = "";
+	  }
+	  
+  if (parseDate(document.getElementById("dateUp").value)==null)
+	{
+	dateUp = "";
+	}
+  
+  $.post("http://localhost:5000/endpointCl",
+  {
+    clusNum: clusNum,
+    dateLow: dateLow,
+	dateUp: dateUp,
+	toYear: toYear,
+	weekDay: weekDay,
+	clMethod: clMethod,
+	clMetric: clMetric,
+	trend: trend,
+	average: average,
+	normalise: normalise,
+	smooth: smooth
+  },
+  function(data){
+	if (data == "True"){
+		drawMultiple();
+		enableButtons();	  
+		}
+	else
+	{
+		alert(data);
+		disableButtons();
+	}
+	var t1 = performance.now();
+	console.log("Post to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+  });
+}
+
+function postAjaxWords(){
+	
+  var t0 = performance.now();
+  console.log("Post to Ajax started " + ((t0)/(1000)) + " seconds.");
+  var dateLow = new Date(parseDate(document.getElementById("dateLow").value));
+  dateLow = dateLow.getFullYear() + "-" + parseInt(dateLow.getMonth()+1) + "-" + dateLow.getDate();
+  var dateUp = new Date(parseDate(document.getElementById("dateUp").value));
+  dateUp = dateUp.getFullYear() + "-" + parseInt(dateUp.getMonth()+1) + "-" + dateUp.getDate();
+  
+  var trend = document.getElementById("checkTrend").checked;
+  var toYear = "";
+  var weekDay = "";
+  if (trend == false){
+	toYear = document.getElementById("selectFilterB").value;
+	weekDay = document.getElementById("selectFilDayB").value;  
+  }
+  
+  var overall = document.getElementById("checkOverallB").checked;
+  overall = overall.toString().charAt(0).toUpperCase() + overall.toString().slice(1);
+  var whichClu = document.getElementById("selectCluster").value;
+  var topWords = document.getElementById("inputWordNum").value;
+  var granulation = document.getElementById("selectGranulB").value; 
+  var getLemma = document.getElementById("selectLemmaB").value;
+  console.log(getLemma)
+  var frequency = document.getElementById("checkTFrequencyB").checked;
+  var phrases = document.getElementById("checkPhrasesB").checked;
+  var polarity = document.getElementById("selectPolarityB").value;
+   
+   
+  if (parseDate(document.getElementById("dateLow").value)!=null)
+	{ 
+	if (parseDate(document.getElementById("dateUp").value)!=null)
+		{
+		if (parseDate(document.getElementById("dateLow").value) >= parseDate(document.getElementById("dateUp").value))
+			{
+			  dateLow = "";    
+			  dateUp = "";
+			}
+		}
+	else 
+		{
+		dateUp = "";
+		}
+	}
+  else 
+	  {
+	  dateLow = "";
+	  }
+	  
+  if (parseDate(document.getElementById("dateUp").value)==null)
+	{
+	dateUp = "";
+	}
+  
+  $.post("http://localhost:5000/epWCperCl",
+  {
+    dateLow: dateLow,
+	dateUp: dateUp,
+	toYear: toYear,
+	weekDay: weekDay,
+	overall: overall,
+	whichClu: whichClu, 
+	topWords: topWords, 
+	granulation: granulation, 
+	getLemma: getLemma,
+	frequency: frequency,
+	polarity: polarity,
+	phrases: phrases
+  },
+  function(data){
+	if (data == "True"){
+		  drawOnce(whichClu);
+		  wordCloud();
+		}
+	else{
+		alert(data);
+		}
+	var t1 = performance.now();
+	console.log("Post to Ajax took " + ((t1 - t0)/(1000)) + " seconds.");
+  });
+}
+
+function drawMultiple(){
+
+	var svg = d3.select("#my_dataviz");
+    svg.selectAll("*").remove();
+
+	d3.csv("/static/revClust.csv" + '?' + Math.floor(Math.random() * 1000), function(data) {
+    	
+	// List of groups (here I have one group per column)
+		var allClusters = d3.nest()
+		.key(function(d){
+			return(d.Cluster)
+		})
+		.entries(data)
+		
+		var allData = d3.nest()
+		.key(function(d){
+			return(d.business_id)
+		})
+		.entries(data)
+		
+		allData = data;
+		
+		document.getElementById("selectCluster").options.length = 0
+		// add the options to the button
+		d3.select("#selectCluster")
+		  .selectAll('myOptions')
+			.data(allClusters)
+		  .enter()
+			.append('option')
+		  .text(function (d) { return d.key; }) // text showed in the menu
+		  .attr("value", function (d) { return d.key; }) // corresponding value returned by the button
+		  
+		sortSelect(document.getElementById("selectCluster"))
+		
+		for (var i = 1; i <= allClusters.length; i++) {
+			var result = allData.filter(function(d){return d.Cluster==i})
+			drawCLine(result)
+			drawBar(result)			
+	}
+})
+
+}
+
+function drawOnce(item){
+
+	var svg = d3.select("#my_dataviz");
+    svg.selectAll("*").remove();
+
+	d3.csv("/static/revClust.csv" + '?' + Math.floor(Math.random() * 1000), function(data) {
+    	
+	// List of groups (here I have one group per column)
+		var allClusters = d3.nest()
+		.key(function(d){
+			return(d.Cluster)
+		})
+		.entries(data)
+		
+		var allData = d3.nest()
+		.key(function(d){
+			return(d.business_id)
+		})
+		.entries(data)
+		
+		allData = data;
+		
+		var result = allData.filter(function(d){return d.Cluster==item})
+		drawCLine(result)
+		drawBar(result)	
+		drawWordCT()
+
+})
+
+}
+
+function sortSelect(selElem) {
+    var tmpAry = new Array();
+    for (var i=0;i<selElem.options.length;i++) {
+        tmpAry[i] = new Array();
+        tmpAry[i][0] = selElem.options[i].text;
+        tmpAry[i][1] = selElem.options[i].value;
+    }
+    tmpAry.sort();
+    while (selElem.options.length > 0) {
+        selElem.options[0] = null;
+    }
+    for (var i=0;i<tmpAry.length;i++) {
+        var op = new Option(tmpAry[i][0], tmpAry[i][1]);
+        selElem.options[i] = op;
+    }
+    return;
+}
+	
+function enableButtons(){
+	
+	  document.getElementById('labelOverall').style.display = 'inline-block';
+	  document.getElementById('checkOverallB').style.display = 'inline-block';
+	  document.getElementById('labelLemma').style.display = 'inline-block';
+	  document.getElementById('selectLemmaB').style.display = 'inline-block';
+	  document.getElementById('labelTFrequency').style.display = 'inline-block';
+	  document.getElementById('checkTFrequencyB').style.display = 'inline-block';
+	  document.getElementById('labelPhrases').style.display = 'inline-block';
+	  document.getElementById('checkPhrasesB').style.display = 'inline-block';
+	  document.getElementById('labelCluster').style.display = 'inline-block';
+	  document.getElementById('selectCluster').style.display = 'inline-block';
+	  document.getElementById('labelWordNum').style.display = 'inline-block';
+	  document.getElementById('inputWordNum').style.display = 'inline-block';
+	  document.getElementById('selectPolarityL').style.display = 'inline-block';
+	  document.getElementById('selectPolarityB').style.display = 'inline-block';
+	  document.getElementById('granulationL').style.display = 'inline-block';
+	  document.getElementById('selectGranulB').style.display = 'inline-block';
+	  document.getElementById('showWordsB').style.display = 'inline-block';
+}
+
+function disableButtons(){
+	
+	  document.getElementById('labelOverall').style.display = 'none';
+	  document.getElementById('checkOverallB').style.display = 'none';
+	  document.getElementById('labelLemma').style.display = 'none';
+	  document.getElementById('selectLemmaB').style.display = 'none';
+	  document.getElementById('labelTFrequency').style.display = 'none';
+	  document.getElementById('checkTFrequencyB').style.display = 'none';
+	  document.getElementById('labelPhrases').style.display = 'none';
+	  document.getElementById('checkPhrasesB').style.display = 'none';
+	  document.getElementById('labelCluster').style.display = 'none';
+	  document.getElementById('selectCluster').style.display = 'none';
+	  document.getElementById('labelWordNum').style.display = 'none';
+	  document.getElementById('inputWordNum').style.display = 'none';
+	  document.getElementById('selectPolarityL').style.display = 'none';
+	  document.getElementById('selectPolarityB').style.display = 'none';
+	  document.getElementById('granulationL').style.display = 'none';
+	  document.getElementById('selectGranulB').style.display = 'none';
+	  document.getElementById('showWordsB').style.display = 'none';
+	  document.getElementById('labelCloud').style.display = 'none';
+	  document.getElementById('selectCloud').style.display = 'none';
+}
+
+function disableMonthDay(){
+	
+	var checkBox = document.getElementById("checkTrend");
+	if (checkBox.checked == true){
+		document.getElementById("labelFilterM").style.display = "none";
+		document.getElementById("selectFilterB").style.display = "none";
+		document.getElementById("labelFilterD").style.display = "none";
+		document.getElementById("selectFilDayB").style.display = "none";
+	} 
+	else {
+		document.getElementById("labelFilterM").style.display = "inline-block";
+		document.getElementById("selectFilterB").style.display = "inline-block";
+		document.getElementById("labelFilterD").style.display = "inline-block";
+		document.getElementById("selectFilDayB").style.display = "inline-block";
+	}
+}
+
+function drawCLine(item){
+
+	// append the svg object to the body of the page
+	var svg = d3.select("#my_dataviz")
+	  .append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+	  .append("g")
+		.attr("transform",
+			  "translate(" + margin.left + "," + margin.top + ")");
+
+	//Read the data
+	var data = item
+	
+	//Parse Month
+	var parseMonth = d3.timeParse("%Y-%m");
+	var formatMonth = d3.timeFormat("%Y-%m");
+	// format month as a date
+	data.forEach(function(d) {
+		d.Month = parseMonth(d.Month);
+	});
+	
+	// group the data: I want to draw one line per group
+	var sumstat = d3.nest() // nest function allows to group the calculation per level of a factor
+	.key(function(d) { return d.name.replace(/[^0-9a-z-A-Z ]/g, "").replace(/\s+/g, '') + d.postal_code;})
+	.entries(data);
+
+	// Add X axis --> it is a date format
+	var x = d3.scaleLinear()
+	.range([ 0, width ])
+	.domain(d3.extent(data, function(d) { return d.Month; }));
+	svg.append("g")
+	.attr("transform", "translate(0," + height + ")")
+	.call(d3.axisBottom(x).ticks(20).tickFormat(formatMonth))
+	.attr("font-size", "8px")
+    .selectAll("text")
+      .attr("transform", "translate(-10,0)rotate(-25)")
+      .style("text-anchor", "end");
+
+	// Add Y axis
+	var y
+	if (document.getElementById("selectFClNormalise").value == "minmax") {
+		y = d3.scaleLinear()
+		.domain([0, 1])
+		.range([ height, 0 ]);
+		svg.append("g")
+		.call(d3.axisLeft(y));
+	}	
+	else if (document.getElementById("selectFClNormalise").value == "zscore") {
+		y = d3.scaleLinear()
+		.domain([d3.min(data, function(d) { return parseFloat(d.Median); }), d3.max(data, function(d) { return parseFloat(d.Median); })])
+		.range([ height, 0 ]);
+		svg.append("g")
+		.call(d3.axisLeft(y));
+	}
+	else {
+		y = d3.scaleLinear()
+		.domain([1, 5])
+		.range([ height, 0 ]);
+		svg.append("g")
+		.call(d3.axisLeft(y));
+	}
+
+	// color palette
+	var res = sumstat.map(function(d){ return d.key }) // list of group names
+	var color = d3.scaleOrdinal()
+	.domain(res)
+	.range(["#1b70fc", "#faff16", "#d50527", "#158940", "#f898fd", "#24c9d7", "#cb9b64", "#866888", "#22e67a", "#e509ae", "#9dabfa", "#437e8a", "#b21bff", "#ff7b91", "#94aa05", "#ac5906", "#82a68d", "#fe6616", "#7a7352", "#f9bc0f", "#b65d66", "#07a2e6", "#c091ae", "#8a91a7", "#88fc07"]);
+
+	// Draw the line
+	svg.selectAll(".line")
+	  .data(sumstat)
+	  .enter()
+	  .append("path")
+		.attr('id', function(d) { return d.key })
+		.attr("fill", "none")
+		.attr("stroke", function(d){ return color(d.key) })
+		.attr("stroke-width", 1.5)
+		.attr("d", function(d){
+		  return d3.line()
+			.x(function(d) { return x(d.Month); })
+			.y(function(d) { return y(+d.Median); })
+			(d.values)
+		})
+}
+
+function drawBar(item) {
+	
+	//Read the data
+	var data = item
+
+	// Compute the binning for each group of the dataset
+  var sumstat = d3.nest()  // nest function allows to group the calculation per level of a factor
+    .key(function(d) { 
+	  return d.business_id;})
+    .rollup(function(d) {
+      amount = d.map(function(g) { return g.occur;})[0]
+	  name = d.map(function(g) { return g.name;})[0]
+	  postal = d.map(function(g) { return g.postal_code;})[0]
+      return({amount: amount, name: name, postal: postal})
+    })
+    .entries(data)
+  
+  // append the svg object to the body of the page
+	var svg = d3.select("#my_dataviz")
+	  .append("svg")
+		.attr("width", (width*sumstat.map((d) => d.key).length)/30 + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom + 50)
+	  .append("g")
+		.attr("transform",
+			  "translate(" + (margin.left + 100) + "," + margin.top + ")");
+  
+  // X axis
+  var x = d3.scaleBand()
+    .range([ 0, (width*sumstat.map((d) => d.key).length)/30 ])
+    .domain(sumstat.map((d) => d.key))
+    .padding(0.1);		
+  svg.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x)
+	.tickFormat( //Putting names instead of business_id
+		function(d){ 
+		  var filtered = sumstat.filter(function(e){ 
+			return e.key === d}); return filtered[0].value.name + " - " + filtered[0].value.postal;
+	  }))
+    .selectAll("text")
+      .attr("transform", "translate(0,0)rotate(-15)")
+      .style("text-anchor", "end");
+
+  // Add Y axis
+  var y = d3.scaleLinear()
+    .domain([0, data.map(function(g) { return g.occur;})[0]])
+    .range([ height, 0]);
+  svg.append("g")
+    .call(d3.axisLeft(y));
+	
+	// color palette
+	var res = sumstat.map(function(d){ return d.key }) // list of group names
+	var color = d3.scaleOrdinal()
+	.domain(res)
+	.range(["#1b70fc", "#faff16", "#d50527", "#158940", "#f898fd", "#24c9d7", "#cb9b64", "#866888", "#22e67a", "#e509ae", "#9dabfa", "#437e8a", "#b21bff", "#ff7b91", "#94aa05", "#ac5906", "#82a68d", "#fe6616", "#7a7352", "#f9bc0f", "#b65d66", "#07a2e6", "#c091ae", "#8a91a7", "#88fc07"]);
+  
+  // Bars
+  svg.selectAll("mybar")
+    .data(sumstat)
+    .enter()
+    .append("rect")
+	  .attr('id', function(d) { return d.value.name.replace(/[^0-9a-z-A-Z ]/g, "").replace(/\s+/g, '') + d.value.postal })
+      .attr("x", function(d) { return x(d.key); })
+      .attr("y", function(d) { return y(d.value.amount); })
+      .attr("width", x.bandwidth())
+      .attr("height", function(d) { return height - y(d.value.amount); })
+      .attr("fill", function(d){ return color(d.key)})
+	  
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
+      .on("click", mouseclick)
+	
+}
+
+function drawWordCT(){
+
+	//var table = d3.select("#my_dataviz");
+    //table.selectAll("*").remove();
+
+	var tabulate = function (data,columns) {
+	  var table = d3.select('#my_dataviz').append('table')
+		var thead = table.append('thead')
+		var tbody = table.append('tbody')
+
+		thead.append('tr')
+		  .selectAll('th')
+			.data(columns)
+			.enter()
+		  .append('th')
+			.text(function (d) { return d })
+
+		var rows = tbody.selectAll('tr')
+			.data(data)
+			.enter()
+		  .append('tr')
+
+		var cells = rows.selectAll('td')
+			.data(function(row) {
+				return columns.map(function (column) {
+					return { column: column, value: row[column] }
+			  })
+		  })
+		  .enter()
+		.append('td')
+		  .text(function (d) { return d.value })
+		  //.style("font-family", "sans-serif")
+		  //.attr("font-size", "20px")       
+		  //.style("stroke", "darkOrange")
+		  .style("background-color", "lightyellow");
+		  
+
+	  return table;
+	}
+
+	d3.csv('/static/wordCount.csv' + '?' + Math.floor(Math.random() * 1000) ,function (data) {
+		var columns = data.columns
+	  tabulate(data,columns)
+	})
+
+}
+
+function wordCloud(){
+			
+	// set the dimensions and margins of the graph
+	var margin = {top: 10, right: 5, bottom: 10, left: 5},
+		width = 400 - margin.left - margin.right,
+		height = 300 - margin.top - margin.bottom;
+	
+	var svg = d3.select("#my_dataviz").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", "translate(" + (width / 2) + "," + (height / 2) + ")")
+	
+	d3.csv('/static/wordCount.csv' + '?' + Math.floor(Math.random() * 1000000) ,function (data) {	
+		
+      var dropDown = d3.select("#selectCloud")
+	  
+	  var foodVenues = []
+		for (i = 0; i < data.columns.slice(1).length; i=i+2){
+			foodVenues.push(data.columns.slice(1)[i] + "_-_" + data.columns.slice(1)[i + 1])
+		}
+	
+	  document.getElementById("selectCloud").options.length = 0
+
+      var options = dropDown.selectAll("option")
+        .data(foodVenues)
+        .enter()
+        .append("option")
+        .text(function(d) {var n = d.split(" ")
+            return n[n.length - 1];
+          })
+        .attr("value", function(d) {
+          return d;
+        })
+		
+	  document.getElementById('selectCloud').style.display = 'inline-block';
+	  document.getElementById('labelCloud').style.display = 'inline-block';
+		
+      dropDown.on("change", update);
+
+      function update() {
+		var spliter =  this.value.split("_-_")
+        var filteredData = sortObject(data, spliter[0], spliter[1]);
+	  	  
+        d3.layout.cloud()
+          .size([width, height])
+          .words(filteredData)
+          .rotate(0)
+          .text(function(d) {
+            return d.label;
+          })
+          .font("Impact")
+          .fontSize(function(d) { 
+			return d.value
+          })
+          .on("end", draw)
+          .start();
+      }
+
+	  function sortObject(obj, name, count) {
+        var newValue = [];
+		var label = name || "Words: Overall";
+		var value = count || "Count: Overall";
+		
+		var smallSize = data.map(function(d) { return d[value]; })[data.map(function(d) { return d[value]; }).length-1]
+		var bigSize = data.map(function(d) { return d[value]; })[0]
+		
+		newValue = data.map(function(d) { return {label: d[label], value: convertRange( d[value], [ smallSize, bigSize ], [ 10, 35 ] )}; })
+				
+        return newValue;
+      }
+	  
+      var newValue = sortObject();
+
+      d3.layout.cloud()
+	    .size([width, height])
+        .words(newValue)
+        .rotate(0)
+        .text(function(d) {
+          return d.label;
+        })
+        .font("Impact")
+        .fontSize(function(d) { 
+          return d.value;
+        })
+        .on("end", draw)
+        .start();
+
+      function draw(words) {		  
+		  		  				  
+        var selectVis = svg.selectAll("text")
+          .data(words, (function(d) {
+            return d.label;
+          }), (function(d) {
+            return d.value;
+          }))
+		  .style("font-size",function(d) {
+            return d.value
+          });
+
+		var res = data.map(function(d, i){ return i }) // list of words ids
+		var fill = d3.scaleOrdinal()
+		  .domain(res)
+		  .range(['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']);
+
+
+        selectVis
+          .enter()
+		  .append("text")
+          .style("font-size", function(d) { 
+            return d.value
+          })
+          .style("font-family", "Impact")
+          .style("fill", function(d, i){ return fill(i) })
+          .attr("text-anchor", "middle")
+          .attr("transform", function(d) {
+            return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+          })
+          .text(function(d) {
+            return d.label;
+          })
+
+        selectVis
+          .transition()
+          .duration(700)
+          .style("font-size", function(d) { 
+            return d.value
+          })
+          .attr("transform", function(d) {
+            return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+          })
+          .style("fill-opacity", 1);
+
+        selectVis
+		  .exit()
+          .transition()
+          .duration(300)
+          .style('fill-opacity', 1e-6)
+          .attr('font-size', 1)
+          .remove();
+      }
+	})	
+}
+
+function convertRange( value, r1, r2 ) { 
+    return ( value - r1[ 0 ] ) * ( r2[ 1 ] - r2[ 0 ] ) / ( r1[ 1 ] - r1[ 0 ] ) + r2[ 0 ];
+}
+// Four functions that change the colours when user hover / move / leave / click a bar
+  var mouseover = function(d) {
+    d3.select(this)
+      .style("stroke", "black")
+	  .style("border", "solid")
+      .style("border-width", "3px")
+      .style("border-radius", "5px")
+      .style("padding", "5px")
+  }
+  
+  var mousemove = function(d) {
+  
+	d3.select(this)
+      .style("stroke", "black")
+	  .style("border", "solid")
+      .style("border-width", "3px")
+      .style("border-radius", "5px")
+      .style("padding", "5px")
+  }
+  
+  var mouseleave = function(d) {
+    d3.select(this)
+      .style("stroke", "none")
+	  .style("border", "solid")
+      .style("border-width", "3px")
+      .style("border-radius", "5px")
+      .style("padding", "5px")
+  }
+  
+  var mouseclick = function(d) {
+	  
+	var id = d.value.name.replace(/[^0-9a-z-A-Z ]/g, "").replace(/\s+/g, '') + d.value.postal
+		
+	if (d3.select('path#' + id).style('stroke') == "rgb(0, 0, 0)"){		
+		d3.select('path#' + id)
+		  .transition()
+		  .duration(500)
+		  .attr("fill", "none")
+			.attr("stroke", "none")		
+	}	
+	
+	else if (d3.select('path#' + id).style('stroke') == "none"){		
+		d3.select('path#' + id)
+		  .transition()
+		  .duration(500)
+		  .attr("fill", "none")
+			.attr("stroke", d3.select('rect#' + id).style('fill'))
+			.attr("stroke-width", 1.5)		
+	}
+	
+	else {		
+		d3.select('path#' + id)
+		  .transition()
+		  .duration(500)
+		  .attr("fill", "none")
+			.attr("stroke", "black")
+			.attr("stroke-width", 5)		
+	}
+  }
+
+</script>

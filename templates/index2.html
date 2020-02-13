@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">
+   <head>
+      <title>Visualisation tool</title>
+	  <link rel = "stylesheet"
+		type = "text/css"
+		href = "{{ url_for('static', filename='stylesheets/index.css') }}" />
+       <h1>Welcome!</h1>
+	   <h2>Press the start button to begin!</h2>
+   </head>
+   <body>
+		<div style="text-align:center;">
+			<a href="{{ url_for('allSample') }}" class="buttonB">Start 1</a>  
+			<br>
+			<a href="{{ url_for('allSample2') }}" class="buttonB">Start 2</a>    
+        </div>
+   </body>
+</html>

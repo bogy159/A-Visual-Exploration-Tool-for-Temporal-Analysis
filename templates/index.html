@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+   <head>
+      <title>Choose visualisation mode:</title>
+       <h1>Choose visualisation mode:</h1>
+      <style>
+         .button {
+         background-color: #1c87c9;
+         border: none;
+         color: white;
+         padding: 8px 14px;
+         text-align: center;
+         text-decoration: none;
+         display: inline-block;
+         font-size: 16px;
+         margin: 4px 2px;
+         cursor: pointer;
+         }
+      </style>
+   </head>
+   <body>
+       <a href="{{ url_for('allSample') }}" class="button">All Data</a>     
+       <a href="{{ url_for('singleRestaurant') }}" class="button">Single Restaurant</a> 
+       <a href="{{ url_for('clustering') }}" class="button">Clustering</a> 
+	   <a href="{{ url_for('wordCount') }}" class="button">Word Count</a>
+       <br>
+   </body>
+</html>

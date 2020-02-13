@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+   <head>
+      <title>This is all the data:</title>
+       <h2>Choose visualisation mode:</h2>
+      <style>
+         .button {
+         background-color: #1c87c9;
+         border: none;
+         color: white;
+         padding: 8px 14px;
+         text-align: center;
+         text-decoration: none;
+         display: inline-block;
+         font-size: 16px;
+         margin: 4px 2px;
+         cursor: pointer;
+         }
+      </style>
+   </head>
+   <body>
+       <a href="{{ url_for('allSample') }}" class="button">All Data</a>     
+       <a href="{{ url_for('singleRestaurant') }}" class="button">Single Restaurant</a> 
+       <a href="{{ url_for('clustering') }}" class="button">Clustering</a>
+	   <a href="{{ url_for('wordCount') }}" class="button">Word Count</a>
+       <br>  
+       
+   </body>
+</html>
+    
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<script>   
+    
+// set the dimensions and margins of the graph
+var margin = {top: 30, right: 30, bottom: 180, left: 110},
+    width = 1050 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+  .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+		  
+		  
+		  
+    
+// Parse the Data
+d3.csv("/static/stackedData.csv" + '?' + Math.floor(Math.random() * 1000), function(data) {
+
+
+  // List of subgroups = header of the csv files = soil condition here
+  var subgroups = data.columns.slice(2)
+
+  // List of groups = species here = value of the first column called group -> I show them on the X axis
+  var groups = d3.map(data, function(d){return(d.newID)}).keys()
+  
+ var maxBin = data.map(function(g) { return parseInt(g["1_star"]) + parseInt(g["2_star"]) + parseInt(g["3_star"]) + parseInt(g["4_star"]) + parseInt(g["5_star"]);})[0]
+/*
+	// Add X axis
+  var x = d3.scaleLinear()
+      .domain([0, maxBin])
+      .range([0, width])
+	svg.append("g")
+		.attr("transform", "translate(0," + height + ")")
+		.call(d3.axisBottom(x))
+		.selectAll("text")
+		  .attr("transform", "translate(-10,0)rotate(-45)")
+		  .style("text-anchor", "end");
+
+	// Add Y axis
+	var y = d3.scaleBand()
+		.domain(groups)
+		.range([ 0, height ])
+		.padding(.1);
+	svg.append("g")
+		.call(d3.axisLeft(y));
+
+	*/
+	
+	// Add X axis
+  var x = d3.scaleBand()
+      .domain(groups)
+      .range([0, width])
+      .padding([0.2])
+  svg.append("g")
+		.attr("transform", "translate(0," + height + ")")
+		.call(d3.axisBottom(x))
+		.selectAll("text")
+		  .attr("transform", "translate(-10,0)rotate(-30)")
+		  .style("text-anchor", "end");
+
+  // Add Y axis
+  var y = d3.scaleLinear()
+    .domain([0, maxBin])
+    .range([ height, 0 ]);
+  svg.append("g")
+    .call(d3.axisLeft(y));
+
+
+  // color palette = one color per subgroup
+  var color = d3.scaleOrdinal()
+    .domain(subgroups)
+    .range(['#d7191c','#fdae61','#ffffbf','#abdda4','#2b83ba'])
+
+  //stack the data? --> stack per subgroup
+  var stackedData = d3.stack()
+    .keys(subgroups)
+    (data)
+
+
+
+
+  // ----------------
+  // Create a tooltip
+  // ----------------
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "2px")
+    .style("border-radius", "5px")
+    .style("padding", "5px")
+
+  // Three function that change the tooltip when user hover / move / leave a cell
+  var mouseover = function(d) {
+    var subgroupName = d3.select(this.parentNode).datum().key;
+    var subgroupValue = d.data[subgroupName];
+    tooltip
+		.style("opacity", 1)
+    d3.select(this)
+      .style("stroke", "black")
+      .style("opacity", 1)
+	
+	
+        //.html("subgroup: " + subgroupName + "<br>" + "Value: " + subgroupValue)
+        //.style("opacity", 1)
+  }
+  var mousemove = function(d) {
+  
+	var subgroupName = d3.select(this.parentNode).datum().key;
+    var subgroupValue = d.data[subgroupName];
+	tooltip
+        .html("The amount of " + subgroupName[0] + " star reviews is: " + subgroupValue)
+      .style("left", (d3.mouse(this)[0]+70) + "px")
+      .style("top", (d3.mouse(this)[1]) + "px")	
+	
+    //tooltip
+    //  .style("left", (d3.mouse(this)[0]+90) + "px") // It is important to put the +90: other wise the tooltip is exactly where the point is an it creates a weird effect
+    //  .style("top", (d3.mouse(this)[1]) + "px")
+  }
+  var mouseleave = function(d) {
+    tooltip
+      .style("opacity", 0)
+    d3.select(this)
+      .style("stroke", "grey")
+	  .style("border", "solid")
+      .style("border-width", "2px")
+      .style("border-radius", "5px")
+      .style("padding", "5px")
+  }
+
+
+
+
+  // Show the bars
+  svg.append("g")
+    .selectAll("g")
+    // Enter in the stack data = loop key per key = group per group
+    .data(stackedData)
+    .enter().append("g")
+      .attr("fill", function(d) { return color(d.key); })
+      .selectAll("rect")
+      // enter a second time = loop subgroup per subgroup to add all rectangles
+      .data(function(d) { return d; })
+      .enter().append("rect")
+        .attr("x", function(d) { return x(d.data.newID); })
+		//.attr("x", x(0))
+        .attr("y", function(d) { return y(d[1]); })
+        //.attr("y", function(d) { return y(d.data.newID); })
+        .attr("height", function(d) { return y(d[0]) - y(d[1]); })		
+        .attr("width",x.bandwidth())
+        //.attr("width",function(d) { return y(d[1]); })
+        //.attr("height", y.bandwidth())
+        .attr("stroke", "grey")
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
+
+
+
+  
+})
+
+    
+</script>

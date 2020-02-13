@@ -1,0 +1,99 @@
+@font-face { font-family: PlovdivSans; src: url('PlovdivSans.otf'); }
+
+h1 {
+  color: navy;
+  text-align: center;
+  font-family: PlovdivSans;
+}
+
+h2 {
+  color: navy;
+  text-align: center;
+  font-family: PlovdivSans;
+}
+
+h3 {
+  color: navy;
+  text-align: center;
+  font-family: PlovdivSans;
+}
+
+.label {
+  color: navy;
+  padding: 8px;
+  font-size: 40px;
+  font-family: PlovdivSans;
+}
+
+.buttonB {
+ background-color: #1c87c9;
+ border: 2px solid red; 
+ color: white;
+ padding: 8px 14px;
+ text-align: center;
+ text-decoration: none;
+ display: inline-block;
+ font-size: 42px;
+ margin: 4px 2px;
+ font-family: PlovdivSans;
+}
+
+.buttonB:hover {
+ background-color: white;
+ border: 2px solid red; 
+ color: #1c87c9;
+}
+
+.buttonR {
+ background-color: #1c87c9;
+ border-radius: 50%;
+ border: 2px solid yellow; 
+ color: white;
+ padding: 8px 14px;
+ text-align: center;
+ text-decoration: none;
+ display: inline-block;
+ font-size: 30px;
+ margin: 4px 2px;
+ font-family: PlovdivSans;
+}
+
+.buttonR:hover {
+ background-color: white;
+ border: 2px solid red; 
+ color: #1c87c9;
+}
+
+.buttonS {
+ background-color: #1c87c9;
+ border: 2px solid yellow; 
+ color: white;
+ padding: 8px 14px;
+ text-align: center;
+ text-decoration: none;
+ display: inline-block;
+ font-size: 30px;
+ margin: 4px 2px;
+ font-family: PlovdivSans;
+}
+
+.buttonS:hover {
+ background-color: white;
+ border: 2px solid red; 
+ color: #1c87c9;
+}
+
+div.tooltip {	
+    position: absolute;			
+    text-align: center;			
+    width: 130px;					
+    height: 100px;					
+    padding: 2px;				
+    font-size: 12px;		
+    background: white;	
+    border: solid;	
+	border-width: 2px;
+    border-radius: 5px;		
+	font-family: PlovdivSans;				
+    pointer-events: none;		
+}
